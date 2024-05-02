@@ -1,7 +1,6 @@
-import { Outlet } from "react-router-dom";
 import PenLogo from "../components/PenLogo";
 // Layout for Sign up and Login page
-export default function AuthLayout() {
+export default function AuthLayout({children}) {
   return (
     <>
       <div className="px-16 py-4 2xl:px-24">
@@ -20,7 +19,7 @@ export default function AuthLayout() {
             </p>
           </div>
           <div className="w-full sm:w-2/5">
-            <Outlet />
+            {children}
           </div>
         </div>
       </div>

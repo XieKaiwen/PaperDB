@@ -1,17 +1,21 @@
-import {Routes, Route, Link} from "react-router-dom";
-import {useContext, useEffect, useState, createContext} from "react"
-import axios from 'axios';
+import {Routes, Route, Link, useLocation} from "react-router-dom";
+import {useContext, useEffect} from "react"
+import RouteGuard from "./auth_components/RouteGuard";
+import axios from "axios"
 // Pages
 import HomePage from "./pages/HomePage"
 import IndexPage from './pages';
 import NotFoundPage from "./pages/NotFoundPage";
+import SomeOtherPage from "./pages/SomeOtherPage";
 // Components
 import SignUpForm from './components/SignUpForm';
 import LoginForm from './components/LoginForm';
 // Layouts
 import AuthLayout from "./layouts/AuthLayout";
+import Layout from "./layouts/Layout";
 
 import "./index.css"
+import { AuthContext } from "./auth_components/AuthContext";
 
 
 // let auth_info;
@@ -28,18 +32,24 @@ import "./index.css"
 
 function App() {
   // Add in context provider for authentication
-
   return (
     <>
       {/* <UserAuth> */}
         <Routes>
-          <Route path="/">
+          <Route path="/" element={<Layout />}>
             <Route index element={<IndexPage />}  />
-            <Route path="auth" element={<AuthLayout />}>
-              <Route path="login" element={<LoginForm />}  />
-              <Route path="signup" element={<SignUpForm />}  />
-            </Route>
-            <Route path="home" element={<HomePage/>} />
+            <Route path="login" element={<LoginForm />}  />
+            <Route path="signup" element={<SignUpForm />}  />
+            <Route path="home" element={
+              <RouteGuard>
+                <HomePage/>
+              </RouteGuard>
+            } />
+            <Route path="other" element={
+              <RouteGuard>
+                <SomeOtherPage/>
+              </RouteGuard>
+            } />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

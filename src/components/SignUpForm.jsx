@@ -2,16 +2,29 @@ import AccountFormInputText from "./FormInputArea"
 import FormSubmitButton from "./FormSubmitButton";
 import SignUpRadio from "./SignUpRadio";
 import SignUpSelect from "./SignUpSelect";
-import {useState} from "react"
-import {Link, useNavigate} from "react-router-dom"
+import {useState, useContext, useEffect} from "react"
+import {Link, useNavigate, useLocation} from "react-router-dom"
 import axios from "axios";
 import qs from 'qs';
 import { validateInputs } from "../../helperfunctions";
+import { AuthContext } from "../auth_components/AuthContext";
 export default SignUpForm;
 // Component to be used for Login and Signin Forms only
 
 
 function SignUpForm() {
+  const {userInfo: {isAuthenticated}, login} = useContext(AuthContext)
+  const navigate = useNavigate();
+  useEffect(()=>{
+    if(isAuthenticated){
+      navigate("/home")
+    } 
+  }, [])
+  const {state} = useLocation() //If reached here from a protected route, redirect to the original route
+  let from = "";
+  if(state){
+    from = state.from;
+  }
   const [fieldInputs, setFieldInputs] = useState(
     {
       email:"",
@@ -22,11 +35,8 @@ function SignUpForm() {
       level:"",
     }
   )
-  const navigate = useNavigate()
 
   const [levelRange, setLevelRange] = useState("")
-
-
 
   function formChange(name, newValue){
     setFieldInputs((prevItem) => {
@@ -75,15 +85,10 @@ function SignUpForm() {
       try{
         const {data:serverAuth} = await axios(options);
         console.log(serverAuth);
+        login(serverAuth)
         // TODO: navigate to homepage if no errors in the serverAuth
-        try{
-          const {data:user_info} = await axios.get("/_auth/check")
-          console.log(user_info);
-        }catch(err){
-          console.error(err);
-        }
         console.log("Successfully registered")
-        navigate("/home");
+        navigate(`${from || "/home"}`)
         
       }catch(err){
         console.error(err);
@@ -158,8 +163,9 @@ function SignUpForm() {
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               Already have an account? Login{" "}
               <Link
-                to="/auth/login"
+                to="/login"
                 className="font-medium text-blue-600 hover:underline dark:text-blue-500"
+                state={{from: from}}
               >
                 here
               </Link>

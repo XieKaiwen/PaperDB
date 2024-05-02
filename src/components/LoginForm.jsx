@@ -1,15 +1,29 @@
 import AccountFormInputText from "./FormInputArea"
 import FormSubmitButton from "./FormSubmitButton";
-import {useState} from "react"
-import {Link, useNavigate} from "react-router-dom"
+import {useContext, useState, useEffect} from "react"
+import {Link, useNavigate, useLocation} from "react-router-dom"
 import { validateInputs } from "../../helperfunctions";
 import axios from "axios";
 import qs from 'qs';
+import { AuthContext } from "../auth_components/AuthContext";
 export default LoginForm;
 // Component to be used for Login and Signin Forms only
 
 
 function LoginForm() {
+  const {userInfo: {isAuthenticated}, login} = useContext(AuthContext)
+  const navigate = useNavigate();
+  useEffect(()=>{
+    if(isAuthenticated){
+      navigate("/home")
+    } 
+  }, [])
+
+  const {state} = useLocation() //If reached here from a protected route, redirect to the original route
+  let from = "";
+  if(state){
+    from = state.from;
+  }
   const [fieldInputs, setFieldInputs] = useState(
     {
       email:"",
@@ -24,9 +38,9 @@ function LoginForm() {
         [name]:newValue
       }
     })
-    console.log(fieldInputs)
+    // console.log(fieldInputs)
   }
-  const navigate = useNavigate();
+
   // Validate field inputs
   const [formErrors, setFormErrors] = useState({emailError:"", loginError:""})
   const {email} = fieldInputs;
@@ -51,13 +65,9 @@ function LoginForm() {
         const {data: serverAuth} = await axios(options);
         console.log(serverAuth)
         console.log("Successfully logged in")
-        try{
-          const {data:user_info} = await axios.get("/_auth/check")
-          console.log(user_info);
-        }catch(err){
-          console.error(err);
-        }
-        navigate("/home");
+        login(serverAuth)
+        navigate(`${from || "/home"}`)
+        
         //Change the response to something related to the user info
       } catch(err){
         //if an error hapened when trying to reach the login API
@@ -106,8 +116,9 @@ function LoginForm() {
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               Don't have an account? Create one{" "}
               <Link
-                to="/auth/signup"
+                to="/signup"
                 className="font-medium text-blue-600 hover:underline dark:text-blue-500"
+                state={{from: from}}
               >
                 here
               </Link>

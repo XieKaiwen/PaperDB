@@ -13,7 +13,6 @@ import 'dotenv/config'
 // Constants
 const isProduction = process.env.NODE_ENV === 'production'
 const port = process.env.PORT || 5173
-console.log(port)
 const base = process.env.BASE || '/'
 // Cached production assets
 const templateHtml = isProduction
@@ -22,6 +21,7 @@ const templateHtml = isProduction
 const ssrManifest = isProduction
   ? await fs.readFile('./dist/client/.vite/ssr-manifest.json', 'utf-8')
   : undefined
+  
 let vite
 
 startServer()
@@ -43,8 +43,13 @@ async function startServer(){
         ]);
         //console.log(result.rows);
         if (result.rows.length > 0) {
-          const user = result.rows[0];
-          const storedHashedPassword = user.password;
+          const user = {
+            user_id: result.rows[0].user_id,
+            username: result.rows[0].username,
+            level: result.rows[0].level,
+            date_joined: result.rows[0].date_joined
+          };
+          const storedHashedPassword = result.rows[0].password;
           //console.log(`Password: ${password}, Stored password: ${storedHashedPassword}`)
           bcrypt.compare(password, storedHashedPassword, (err, valid) => {
             if (err) {
@@ -156,13 +161,14 @@ async function startServer(){
             console.error(err);
             return res.sendStatus(500);
           }
-          console.log("Successfully started session");
-          console.log("req.user:", req.user);
-          // const successfulRegisterResponse = {
-
-          // }
           req.session.save(() => {
-            return res.status(200).json(authStatus);
+            console.log("Successfully started session");
+            //  console.log("req.user:", req.user);
+            const successResponse = {
+              isAuthenticated : true,
+              ...req.user
+            }
+            return res.status(200).json(successResponse);
           })
         });
       }
@@ -209,9 +215,14 @@ async function startServer(){
             console.error(err);
             return res.sendStatus(500);
           }
-          console.log("Successfully started session");
+          
           req.session.save(() => {
-            return res.status(200).json(authStatus);
+            console.log("Successfully started session");
+            const successResponse = {
+              isAuthenticated : true,
+              ...req.user
+            }
+            return res.status(200).json(successResponse);
           })
         });
       }
@@ -219,6 +230,7 @@ async function startServer(){
   })
 
   // API for checking authentication of the user
+  // req.user should contain user_id, username, level, date_joined
   app.get("/_auth/check", (req, res) => {
     if(req.isAuthenticated()){
       const user_info = {
@@ -228,8 +240,12 @@ async function startServer(){
       // console.log("user_info:", user_info)
       return res.status(200).json(user_info)
     } else{
-      return res.status(401).json({
-        isAuthenticated : false
+      return res.status(200).json({
+        isAuthenticated : false,
+        user_id:"",
+        username:"",
+        level:"",
+        date_joined:""
       });
     }
   })
@@ -250,10 +266,6 @@ async function startServer(){
     console.log(`Server started at http://localhost:${port}`)
   })
 }
-
-
-
-
 
 
 
