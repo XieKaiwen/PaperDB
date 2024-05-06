@@ -10,7 +10,7 @@ function AccountFormInputText({
   onInputChange,
   error,
 }) {
-  // error prop is only for password and username
+  // error prop is only for password and username and email and level
 
   const [textInput, setTextInput] = useState("");
 

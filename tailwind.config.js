@@ -9,6 +9,9 @@ export default {
       sans: ['Roboto', 'sans-serif'],
       serif: ['Merriweather', 'serif'],
     },
+    container: {
+      center: true,
+    },
     extend: {},
   },
   plugins: [],

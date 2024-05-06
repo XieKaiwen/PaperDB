@@ -7,6 +7,8 @@ import passport from "passport";
 import session from "express-session";
 import { validateInputs } from './helperfunctions.js';
 import morgan from "morgan"
+import jwt from "jsonwebtoken";
+import { sendVerificationEmail } from './mailer.js';
 import 'dotenv/config'
 
 
@@ -103,6 +105,7 @@ async function startServer(){
   app.use(passport.initialize());
   app.use(passport.session());
   app.use(morgan("dev"));
+  app.use(trimReqBody)
   const db = new pg.Client({
     user: process.env.PG_USER,
     host: process.env.PG_HOST,
@@ -151,26 +154,32 @@ async function startServer(){
         const formattedDate = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
 
         const response = await db.query(
-          "INSERT INTO users (username, password, email, level, date_joined) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, username, level, to_char(date_joined, 'DD-MM-YYYY') AS date_joined",
-          [username, hash, email, level, formattedDate]
+          "INSERT INTO users (username, password, email, level, date_joined, verified) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id, username, level, to_char(date_joined, 'DD-MM-YYYY') AS date_joined",
+          [username, hash, email, level, formattedDate, false]
         );
         const user = response.rows[0];
         console.log("User added to database...");
-        req.login(user, (err) => {
-          if(err){
-            console.error(err);
-            return res.sendStatus(500);
-          }
-          req.session.save(() => {
-            console.log("Successfully started session");
-            //  console.log("req.user:", req.user);
-            const successResponse = {
-              isAuthenticated : true,
-              ...req.user
-            }
-            return res.status(200).json(successResponse);
-          })
-        });
+        // jwt sign token
+        const token = jwt.sign(user, process.env.EMAIL_SECRET, {expiresIn: "30m"});
+        sendVerificationEmail(email, token);
+        console.log(token)
+        /** Instead of letting them into the site, we redirect them to the await confirmation site */
+        return res.status(200).json({token: token});
+        // req.login(user, (err) => {
+        //   if(err){
+        //     console.error(err);
+        //     return res.sendStatus(500);
+        //   }
+        //   req.session.save(() => {
+        //     console.log("Successfully started session");
+        //     //  console.log("req.user:", req.user);
+        //     const successResponse = {
+        //       isAuthenticated : true,
+        //       ...req.user
+        //     }
+        //     return res.status(200).json(successResponse);
+        //   })
+        // });
       }
 
     } catch(err){
@@ -251,6 +260,33 @@ async function startServer(){
   })
 
 
+  // API for the "verify" route to verify the user in the database
+  app.get("/verify_token/:token", async(req, res) => {
+    const {token} = req.params;
+    try{
+      const decodedUser = jwt.verify(token, process.env.EMAIL_SECRET);
+      const {user_id} = decodedUser;
+      try {
+        await db.query("UPDATE users SET verified=$1 WHERE user_id=$2", [true, user_id]);
+        return res.sendStatus(200);
+      } catch (err) {
+        console.error(err);
+        return res.sendStatus(500);
+      }
+    }catch(err){
+      //if there is a problem with decoding
+      console.error(err);
+      if(err.name === "JsonWebTokenError"){
+        return res.status(400).send(`Invalid token: ${err.message}`)
+      }else if(err.name === "TokenExpiredError"){
+        return res.status(401).send("Token has expired, invalid token");
+      }else{
+        return res.status(500).send(err.message);
+      }
+    }
+  })
+
+
   //  initialise vite middleware depending on dev or production mode
   await initialBootAndMiddleware(app)
   //Sending over the HTML
@@ -324,4 +360,20 @@ async function ServeHTML(app){
       res.status(500).end(e.stack)
     }
   })
+}
+
+
+function trimReqBody(req, res, next){
+  if (req.body && typeof req.body === 'object') {
+    // Iterate over each key in req.body
+    Object.keys(req.body).forEach(key => {
+      // Check if the value associated with the key is a string
+      if (typeof req.body[key] === 'string') {
+        // Trim whitespace from the string value
+        req.body[key] = req.body[key].trim();
+      }
+    });
+  }
+  // Call the next middleware in the chain
+  next();
 }

@@ -1,5 +1,6 @@
 import AccountFormInputText from "./FormInputArea"
 import FormSubmitButton from "./FormSubmitButton";
+import Checkbox from "./Checkbox";
 import {useContext, useState, useEffect} from "react"
 import {Link, useNavigate, useLocation} from "react-router-dom"
 import { validateInputs } from "../../helperfunctions";
@@ -24,14 +25,17 @@ function LoginForm() {
   if(state){
     from = state.from;
   }
+  // checkRemember is to determine whether or not to save session for the user
   const [fieldInputs, setFieldInputs] = useState(
     {
       email:"",
-      password: ""
+      password: "",
+      checkRemember: false
     }
   )
 
   function formChange(name, newValue){
+    //console.log(name, newValue)
     setFieldInputs((prevItem) => {
       return {
         ...prevItem,
@@ -111,15 +115,16 @@ function LoginForm() {
             <AccountFormInputText type="email" fieldName="email" label="Email Address" isRequired={true} onInputChange={formChange}/>
             {formErrors.emailError && <p className="-mt-3.5 mb-5 text-xs text-red-600 dark:text-red-400">{formErrors.emailError}</p>}
             <AccountFormInputText type="password" fieldName="password" label="Password" isRequired={true} onInputChange={formChange}/>
-            {formErrors.loginError && <p className="-mt-3 mb-3 text-xs text-red-600 dark:text-red-400">{formErrors.loginError}</p>}
+            {formErrors.loginError && <p className="-mt-3 mb-2.5 text-xs text-red-600 dark:text-red-400">{formErrors.loginError}</p>}
+            
+            <Checkbox extraClass="-mt-1 mb-3.5" label="Remember Me" fieldName="checkRemember" onCheckClick={formChange}/>
+            
             <FormSubmitButton value="Login" />
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               Don't have an account? Create one{" "}
               <Link
                 to="/signup"
-                className="font-medium text-blue-600 hover:underline dark:text-blue-500"
-                state={{from: from}}
-              >
+                className="font-medium text-blue-600 hover:underline dark:text-blue-500">
                 here
               </Link>
               .

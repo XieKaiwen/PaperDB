@@ -20,11 +20,7 @@ function SignUpForm() {
       navigate("/home")
     } 
   }, [])
-  const {state} = useLocation() //If reached here from a protected route, redirect to the original route
-  let from = "";
-  if(state){
-    from = state.from;
-  }
+
   const [fieldInputs, setFieldInputs] = useState(
     {
       email:"",
@@ -83,12 +79,11 @@ function SignUpForm() {
         url: "/_auth/register",
       }
       try{
-        const {data:serverAuth} = await axios(options);
-        console.log(serverAuth);
-        login(serverAuth)
-        // TODO: navigate to homepage if no errors in the serverAuth
-        console.log("Successfully registered")
-        navigate(`${from || "/home"}`)
+        const {data:{token}} = await axios(options);
+        console.log(token);
+        // Redirect to await confirmation page if   
+        console.log("Account added, awaiting verification")
+        navigate(`/await-confirmation?token=${token}`) //maybe pass in a state so that it can still 
         
       }catch(err){
         console.error(err);
@@ -164,9 +159,7 @@ function SignUpForm() {
               Already have an account? Login{" "}
               <Link
                 to="/login"
-                className="font-medium text-blue-600 hover:underline dark:text-blue-500"
-                state={{from: from}}
-              >
+                className="font-medium text-blue-600 hover:underline dark:text-blue-500">
                 here
               </Link>
               .
