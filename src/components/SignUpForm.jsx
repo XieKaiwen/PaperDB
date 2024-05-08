@@ -79,11 +79,12 @@ function SignUpForm() {
         url: "/_auth/register",
       }
       try{
-        const {data:{token}} = await axios(options);
-        console.log(token);
+        const {data:{email}} = await axios(options);
+        console.log(email);
         // Redirect to await confirmation page if   
         console.log("Account added, awaiting verification")
-        navigate(`/await-confirmation?token=${token}`) //maybe pass in a state so that it can still 
+        // Leads to the await verify route with the email (changed from token in the previous version)
+        navigate(`/await-verify?email=${email}`) //maybe pass in a state so that it can still 
         
       }catch(err){
         console.error(err);

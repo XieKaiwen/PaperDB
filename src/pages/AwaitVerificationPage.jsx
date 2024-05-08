@@ -1,10 +1,14 @@
 import { useState,useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import qs from "qs";
+import axios from "axios"
 
 export default function AwaitVerificationPage() {
-  // Add a timer to resend email (prevent spam clicking)\
-  const [seconds, setSeconds] = useState(60);
+  // Add a timer to resend email (prevent spam clicking)
+  const [seconds, setSeconds] = useState(10);
   const location = useLocation();
+  const queryParameters = new URLSearchParams(location.search)
+  const email = queryParameters.get("email");
   useEffect(() => {
     // Timer logic
     const interval = setInterval(() => {
@@ -23,9 +27,24 @@ export default function AwaitVerificationPage() {
     return () => clearInterval(interval);
   }, [seconds]); // Run whenever 'seconds' state changes
 
-  function handleResendClick(){
+  async function handleResendClick(){
     setSeconds(60); // Reset seconds to 60
-    // Trigger API to send email again 
+    // Trigger API to send email again
+    const formData = qs.stringify({email: email});
+    const options = {
+      method: "POST",
+      headers: {'content-type': 'application/x-www-form-urlencoded'},
+      data: formData,
+      url: "/resend",
+    }
+    try{
+      // hit the API endpoint for resending email
+      const {data:responseMessage} = await axios(options)
+      console.log(responseMessage)
+    }catch(err){
+      console.error(err);
+      alert("Error in resending verification email...")
+    }
   };
 
 

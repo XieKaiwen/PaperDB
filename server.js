@@ -8,7 +8,7 @@ import session from "express-session";
 import { validateInputs } from './helperfunctions.js';
 import morgan from "morgan"
 import jwt from "jsonwebtoken";
-import { sendVerificationEmail } from './mailer.js';
+import { sendVerificationEmail, asyncSendVerificationEmail } from './mailer.js';
 import 'dotenv/config'
 
 
@@ -40,18 +40,22 @@ async function startServer(){
     async function verify(email, password, cb) {
       //console.log(`Email: ${email}, Password: ${password}`)
       try {
-        const result = await db.query("SELECT user_id, username, password, email, level, to_char(date_joined, 'DD-MM-YYYY') AS date_joined FROM users WHERE email = $1 ", [
+        const {rows} = await db.query("SELECT user_id, username, password, email, level, to_char(date_joined, 'DD-MM-YYYY') AS date_joined, verified FROM users WHERE email = $1 ", [
           email,
         ]);
-        //console.log(result.rows);
-        if (result.rows.length > 0) {
+        console.log(rows);
+        if (rows.length > 0) {
+          // If the user is not verified, send an error saying account is not activated
+          if(!rows[0].verified){
+            return cb("Account not activated");
+          }
           const user = {
-            user_id: result.rows[0].user_id,
-            username: result.rows[0].username,
-            level: result.rows[0].level,
-            date_joined: result.rows[0].date_joined
+            user_id: rows[0].user_id,
+            username: rows[0].username,
+            level: rows[0].level,
+            date_joined: rows[0].date_joined
           };
-          const storedHashedPassword = result.rows[0].password;
+          const storedHashedPassword = rows[0].password;
           //console.log(`Password: ${password}, Stored password: ${storedHashedPassword}`)
           bcrypt.compare(password, storedHashedPassword, (err, valid) => {
             if (err) {
@@ -152,19 +156,19 @@ async function startServer(){
         const hash = await bcrypt.hash(password, saltRounds);
         const currentDate = new Date();
         const formattedDate = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
-
-        const response = await db.query(
+        const levelInt = parseInt(level);
+        const {rows:[user]} = await db.query(
           "INSERT INTO users (username, password, email, level, date_joined, verified) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id, username, level, to_char(date_joined, 'DD-MM-YYYY') AS date_joined",
-          [username, hash, email, level, formattedDate, false]
+          [username, hash, email, levelInt, formattedDate, false]
         );
-        const user = response.rows[0];
         console.log("User added to database...");
         // jwt sign token
-        const token = jwt.sign(user, process.env.EMAIL_SECRET, {expiresIn: "30m"});
+        const token = jwt.sign({email:email}, process.env.EMAIL_SECRET, {expiresIn: "30m"});
         sendVerificationEmail(email, token);
-        console.log(token)
-        /** Instead of letting them into the site, we redirect them to the await confirmation site */
-        return res.status(200).json({token: token});
+
+        /** Instead of letting them into the site, we redirect them to the await confirmation site added with the email query parameter */
+        return res.status(200).json({email: email});
+        // Below is not needed anymore because we are no longer starting a session after signing
         // req.login(user, (err) => {
         //   if(err){
         //     console.error(err);
@@ -191,7 +195,8 @@ async function startServer(){
 
   //  Login API: 
   app.post("/_auth/login", (req, res, next) =>{
-    const {email, password} = req.body
+    const {email, password, checkRemember} = req.body
+    //qs.stringify turns the boolean checkRemember on the client-side to a string, e.g. "true" OR "false"
     //console.log(req.body)
     let authStatus = {
       error: false,
@@ -209,31 +214,52 @@ async function startServer(){
         console.error(err);
       }
       if(!user){
-        authStatus = {
-          ...authStatus,
-          error: true,
-          loginError: "Username or password is incorrect"
+        // If account has not been verified
+        if(err === "Account not activated"){
+          authStatus = {
+            ...authStatus,
+            error: true,
+            loginError: "Account has not been activated"
+          }
+        }
+        else{
+          authStatus = {
+            ...authStatus,
+            error: true,
+            loginError: "Email or password is incorrect"
+          }
         }
         console.log(authStatus)
         return res.status(401).json(authStatus);
       } else{
         //console.log(user)
         console.log("Login successful")
-        req.login(user, (err) => {
-          if(err){
-            console.error(err);
-            return res.sendStatus(500);
-          }
-          
-          req.session.save(() => {
-            console.log("Successfully started session");
-            const successResponse = {
-              isAuthenticated : true,
-              ...req.user
+        
+        // User can choose if they want a session through the "Remember me" option
+        if(checkRemember === "true"){
+          req.login(user, (err) => {
+            if(err){
+              console.error(err);
+              return res.sendStatus(500);
             }
-            return res.status(200).json(successResponse);
-          })
-        });
+            
+            req.session.save(() => {
+              console.log("Session started successfully");
+              const successResponse = {
+                isAuthenticated : true,
+                ...req.user
+              }
+              return res.status(200).json(successResponse);
+            })
+          });
+        }else{
+          console.log("Logging in without starting session");
+          const successResponse = {
+            isAuthenticated : true,
+            ...req.user
+          }
+          return res.status(200).json(successResponse);
+        }
       }
     })(req, res, next);
   })
@@ -265,9 +291,14 @@ async function startServer(){
     const {token} = req.params;
     try{
       const decodedUser = jwt.verify(token, process.env.EMAIL_SECRET);
-      const {user_id} = decodedUser;
+      const {email} = decodedUser;
       try {
-        await db.query("UPDATE users SET verified=$1 WHERE user_id=$2", [true, user_id]);
+        const {rows:[{user_id}]} = await db.query("UPDATE users SET verified=$1 WHERE email=$2 RETURNING user_id", [true, email]);
+        const currentDate = new Date();
+        const formattedDate = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
+        // Adding a user log for successful account activated
+        const successRegisterLog = "Joined PaperDB! Successfully registered and activated account.";
+        await db.query("INSERT INTO user_logs(user_id, log_entry, log_date) VALUES($1, $2, $3)", [user_id, successRegisterLog, formattedDate])
         return res.sendStatus(200);
       } catch (err) {
         console.error(err);
@@ -283,6 +314,17 @@ async function startServer(){
       }else{
         return res.status(500).send(err.message);
       }
+    }
+  })
+
+  app.post("/resend", async(req, res) => {
+    const {email} = req.body;
+    try{
+      const token = jwt.sign({email:email}, process.env.EMAIL_SECRET, {expiresIn: "30m"});
+      await asyncSendVerificationEmail(email, token);    
+      return res.status(200).send("Verification email resend initated successfully")
+    }catch(err){
+      return res.status(500).send(`Error: ${err.name + " " + err.message}`);
     }
   })
 

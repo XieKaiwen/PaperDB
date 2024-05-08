@@ -34,7 +34,7 @@ export function validateInputs(purpose, valStatus , email, password, confirmPass
             }
         } 
         // 4. validate level input
-        if(level == ""){
+        if(level === ""){
             // Tests if the level string only contains numbers
             valStatus = {
                 ...valStatus,

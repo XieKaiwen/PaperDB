@@ -37,7 +37,7 @@ function App() {
                 <SomeOtherPage/>
               </RouteGuard>
             } />
-            <Route path="await-confirmation" element={<AwaitVerificationPage />}/>
+            <Route path="await-verify" element={<AwaitVerificationPage />}/>
             <Route path="verify" element={<EmailConfirmationPage />}/>
             <Route path="*" element={<NotFoundPage />} replace/>
           </Route>
