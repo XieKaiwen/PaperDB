@@ -8,6 +8,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 import SomeOtherPage from "./pages/SomeOtherPage";
 import EmailConfirmationPage from "./pages/EmailConfirmationPage";
 import AwaitVerificationPage from "./pages/AwaitVerificationPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 // Components
 import SignUpForm from './components/SignUpForm';
 import LoginForm from './components/LoginForm';
@@ -39,6 +40,7 @@ function App() {
             } />
             <Route path="await-verify" element={<AwaitVerificationPage />}/>
             <Route path="verify" element={<EmailConfirmationPage />}/>
+            <Route path="forgot-password" element={<ForgotPasswordPage />}/>
             <Route path="*" element={<NotFoundPage />} replace/>
           </Route>
         </Routes>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import axios from "axios";
 
 
@@ -30,12 +30,12 @@ export default function EmailConfirmationPage() {
       {isSuccess &&
         <p className="text-gray-500 dark:text-gray-400 mx-auto py-10 px-14 w-full md:w-10/12 md:px-6">
           Email successfully verified, account has been successfully activated. Click{" "}
-          <a
-            href="/login"
+          <Link
+            to="/login"
             className="font-medium text-blue-600 dark:text-blue-500 hover:underline"
           >
             here
-          </a>{" "}
+          </Link>{" "}
           to login to use your account!
         </p>
       }

@@ -3,7 +3,7 @@ import FormSubmitButton from "./FormSubmitButton";
 import Checkbox from "./Checkbox";
 import {useContext, useState, useEffect} from "react"
 import {Link, useNavigate, useLocation} from "react-router-dom"
-import { validateInputs } from "../../helperfunctions";
+import { validateAuthInputs } from "../../helperfunctions";
 import axios from "axios";
 import qs from 'qs';
 import { AuthContext } from "../auth_components/AuthContext";
@@ -56,7 +56,7 @@ function LoginForm() {
       emailError:"", 
       loginError:""
     }
-    valStatus = validateInputs("login", valStatus, email);
+    valStatus = validateAuthInputs("login", valStatus, email);
     if(!valStatus.error){
       const formData = qs.stringify(fieldInputs); //turn the form data into something to pass into axios
       const options = {
@@ -76,13 +76,16 @@ function LoginForm() {
       } catch(err){
         //if an error hapened when trying to reach the login API
         console.error(err)
-        if(err.response.status === 400 || err.response.status === 401){
+        const {status: errStatus, data: errData} = err.response;
+         // errData contains the authStatus sent from the server, mainly validation 
+        const {emailError, loginError} = errData
+        if(errStatus === 400 || errStatus === 401){
           setFormErrors((prev) => {
             return(
               {
                 ...prev,
-                emailError: err.response.data.emailError,
-                loginError: err.response.data.loginError
+                emailError: emailError,
+                loginError: loginError
               }
             )
           })
@@ -110,7 +113,7 @@ function LoginForm() {
           <h2 className="text-4xl font-extrabold dark:text-white mb-4">
             Login
           </h2>
-          <form onSubmit={handleFormSubmit} className="max-w-md">
+          <form onSubmit={handleFormSubmit} className="max-w-md mb-2">
             {/* need to add in post route */}
             <AccountFormInputText type="email" fieldName="email" label="Email Address" isRequired={true} onInputChange={formChange}/>
             {formErrors.emailError && <p className="-mt-3.5 mb-5 text-xs text-red-600 dark:text-red-400">{formErrors.emailError}</p>}
@@ -130,6 +133,7 @@ function LoginForm() {
               .
             </p>
           </form>
+          <Link to="/forgot-password" className="font-medium text-blue-600 dark:text-blue-500 hover:underline">Forgot password?</Link>
         </div>
       </div>
     </>

@@ -1,4 +1,4 @@
-export function validateInputs(purpose, valStatus , email, password, confirmPassword, username, level){
+export function validateAuthInputs(purpose, valStatus, email, password, confirmPassword, username, level){
     // 1. validate email
     const emailRegex = new RegExp(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/);
     if(!emailRegex.test(email) || email.length > 320){ 
@@ -9,7 +9,6 @@ export function validateInputs(purpose, valStatus , email, password, confirmPass
             emailError: "Email entered is not valid."
         }
     }     
-    
     if(purpose === "register"){
         // 2. validate password
         if(password != confirmPassword){
@@ -26,11 +25,18 @@ export function validateInputs(purpose, valStatus , email, password, confirmPass
             }
         }
         // 3. validate username
+        const usernameRegex = new RegExp(/^[a-zA-Z0-9]+$/);
         if(username.length > 50){
-            valStatus = {
+            valStatus = { 
                 ...valStatus,
                 error: true,
                 usernameError: "Username cannot be longer than 50 characters."
+            }
+        }else if(!usernameRegex.test(username)){
+            valStatus = {
+                ...valStatus,
+                error: true,
+                usernameError: "Username can only contain letters and numbers."
             }
         } 
         // 4. validate level input

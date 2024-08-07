@@ -5,10 +5,10 @@ import bcrypt from "bcrypt"
 import { Strategy } from "passport-local";
 import passport from "passport";
 import session from "express-session";
-import { validateInputs } from './helperfunctions.js';
+import { validateAuthInputs } from './helperfunctions.js';
 import morgan from "morgan"
 import jwt from "jsonwebtoken";
-import { sendVerificationEmail, asyncSendVerificationEmail } from './mailer.js';
+import { sendEmail, asyncSendEmail } from './mailer.js';
 import 'dotenv/config'
 
 
@@ -133,7 +133,7 @@ async function startServer(){
     }
     // TODO: Server-side input validation here
     const {email, password, confirmPassword, username, level, levelRange} = req.body;
-    authStatus = validateInputs("register", authStatus, email, password, confirmPassword, username, level);
+    authStatus = validateAuthInputs("register", authStatus, email, password, confirmPassword, username, level);
     if(authStatus.error){
       console.log(authStatus);
       return res.status(400).json(authStatus);
@@ -164,26 +164,12 @@ async function startServer(){
         console.log("User added to database...");
         // jwt sign token
         const token = jwt.sign({email:email}, process.env.EMAIL_SECRET, {expiresIn: "30m"});
-        sendVerificationEmail(email, token);
+        const verificationEmailContent = `Please kindly click on the following link to verify your email account and activate your account to finish the registration process. This link is valid for 30 minutes. Your support is greatly appreciated!:\nhttp://localhost:${port}/verify?token=${token}.`;
+        const verificationEmailTitle = "Email verification for account activation"
+        sendEmail(email, verificationEmailContent, verificationEmailTitle);
 
         /** Instead of letting them into the site, we redirect them to the await confirmation site added with the email query parameter */
         return res.status(200).json({email: email});
-        // Below is not needed anymore because we are no longer starting a session after signing
-        // req.login(user, (err) => {
-        //   if(err){
-        //     console.error(err);
-        //     return res.sendStatus(500);
-        //   }
-        //   req.session.save(() => {
-        //     console.log("Successfully started session");
-        //     //  console.log("req.user:", req.user);
-        //     const successResponse = {
-        //       isAuthenticated : true,
-        //       ...req.user
-        //     }
-        //     return res.status(200).json(successResponse);
-        //   })
-        // });
       }
 
     } catch(err){
@@ -203,7 +189,7 @@ async function startServer(){
       emailError:"", 
       loginError:""
     }
-    authStatus = validateInputs("login", authStatus, email);
+    authStatus = validateAuthInputs("login", authStatus, email);
     //console.log(authStatus)
     if(authStatus.error){
       console.log(authStatus)
@@ -321,32 +307,74 @@ async function startServer(){
     const {email} = req.body;
     try{
       const token = jwt.sign({email:email}, process.env.EMAIL_SECRET, {expiresIn: "30m"});
-      await asyncSendVerificationEmail(email, token);    
+      const verificationEmailContent = `Please kindly click on the following link to verify your email account and activate your account to finish the registration process. This link is valid for 30 minutes. Your support is greatly appreciated!:\nhttp://localhost:${port}/verify?token=${token}.`;
+      const verificationEmailTitle = "Email verification for account activation"
+      await asyncSendEmail(email, verificationEmailContent, verificationEmailTitle);
       return res.status(200).send("Verification email resend initated successfully")
     }catch(err){
       return res.status(500).send(`Error: ${err.name + " " + err.message}`);
     }
   })
 
+  app.post("/forgot-password", async (req, res) => {
+    const {email} = req.body;
+    // 1. Validate the inputs
+    const emailRegex = new RegExp(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/);
+    let valStatus = {
+      error:false,
+      emailError:""
+    }
+    if(!emailRegex.test(email) || email.length > 320){ 
+        //if email does not follow the regex pattern, or longer than 320 characters (maximum length of an email)
+        valStatus = {
+            error: true,
+            emailError: "Email entered is not valid."
+        }
+        return res.status(400).json(valStatus);
+    }
+    // 2. Check if the email account exists
+    try{
+      const {rows} = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+      if(rows.length > 0){
+        // if the email exists
+        // 3. Send email with route to reset-password, along with a token (encoded with email and jwt)
+        const token = jwt.sign({email}, process.env.EMAIL_SECRET, {expiresIn: "30m"});
+        const forgotPasswordContent = `Please click on the link to reset your password. This link is valid for 30 minutes. Your support is greatly appreciated!:\nhttp://localhost:${port}/reset-password?token=${token}.`;
+        const forgotPasswordTitle = "Link for password reset";
+        sendEmail(email, forgotPasswordContent, forgotPasswordTitle);
+        // 4. respond with the appropriate status and message
+        return res.status(200).send("Email sending initiated successfully");
+      }else{
+        // if the email does not exists
+        valStatus = {
+          error: true,
+          emailError: "Email entered is not linked to an account."
+        }
+        return res.status(400).json(valStatus);
+      }
+    }catch(err){
+      console.error(err);
+      console.log("Error selecting users...");
+      return res.status(500).send(`${err.name}: ${err.message}`)
+    }
+  })
 
-  //  initialise vite middleware depending on dev or production mode
+
+  app.get("/reset-password", (req, res) => {
+
+  })
+
+
+  //  Initialise vite middleware depending on dev or production mode
   await initialBootAndMiddleware(app)
-  //Sending over the HTML
+  //  Sending over the HTML
   await ServeHTML(app)
-
-
-  
-  
-
 
   // Start http server
   app.listen(port, () => {
     console.log(`Server started at http://localhost:${port}`)
   })
 }
-
-
-
 
 
 async function initialBootAndMiddleware(app){
@@ -366,8 +394,6 @@ async function initialBootAndMiddleware(app){
     app.use(base, sirv('./dist/client', { extensions: [] }))
   }
 }
-
-
 
 async function ServeHTML(app){
   // Serve HTML

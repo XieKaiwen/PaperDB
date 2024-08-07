@@ -5,30 +5,24 @@ import axios from "axios"
 
 export default function AwaitVerificationPage() {
   // Add a timer to resend email (prevent spam clicking)
-  const [seconds, setSeconds] = useState(10);
+  const resendTimer = 10;
+  const [seconds, setSeconds] = useState(resendTimer);
   const location = useLocation();
   const queryParameters = new URLSearchParams(location.search)
   const email = queryParameters.get("email");
   useEffect(() => {
     // Timer logic
     const interval = setInterval(() => {
-      setSeconds(prevSeconds => {
-        // Decrease seconds by 1, stop at 0
-        if (prevSeconds > 0) {
-          return prevSeconds - 1;
-        } else {
-          clearInterval(interval); // Stop the timer when it reaches 0
-          return 0;
-        }
-      });
+      setSeconds(prevSeconds => prevSeconds > 0 ? prevSeconds - 1 : 0);
+      // Decrease until 0 and remain at 0
     }, 1000); // Update every second
 
     // Clean up interval on component unmount
     return () => clearInterval(interval);
-  }, [seconds]); // Run whenever 'seconds' state changes
+  }, []); // Run whenever 'seconds' state changes
 
   async function handleResendClick(){
-    setSeconds(60); // Reset seconds to 60
+    setSeconds(resendTimer); // Reset seconds to 60
     // Trigger API to send email again
     const formData = qs.stringify({email: email});
     const options = {
@@ -51,10 +45,13 @@ export default function AwaitVerificationPage() {
   return (
     <>
       <div className="container">
-        <p className="text-gray-500 dark:text-gray-400 py-8 px-14 xl:py-14 w-full md:w-10/12 md:px-6">
-          <b>A verification email has been sent to the email account.</b> Please
+        <p className="text-gray-500 dark:text-gray-400 pt-8 pb-6 px-14 xl:py-14 w-full md:w-10/12 md:px-6">
+          A verification email has been sent to <b>{email}</b>. Please
           click on the link provided in the email to activate your account and
           complete the registration process.
+        </p>
+        <p className="text-gray-500 dark:text-gray-400 px-14 pb-6 w-full md:w-10/12 md:px-6">
+          Cant't find the email? Try checking your spam folder
         </p>
         <p className="text-gray-500 dark:text-gray-400 px-14 w-full md:w-10/12 md:px-6 inline">
           Didn't receive the email? 

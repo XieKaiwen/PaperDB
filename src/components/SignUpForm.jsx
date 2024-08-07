@@ -6,7 +6,7 @@ import {useState, useContext, useEffect} from "react"
 import {Link, useNavigate, useLocation} from "react-router-dom"
 import axios from "axios";
 import qs from 'qs';
-import { validateInputs } from "../../helperfunctions";
+import { validateAuthInputs } from "../../helperfunctions";
 import { AuthContext } from "../auth_components/AuthContext";
 export default SignUpForm;
 // Component to be used for Login and Signin Forms only
@@ -68,7 +68,7 @@ function SignUpForm() {
       usernameError: "",
       emailError: ""
     }
-    valStatus = validateInputs("register", valStatus, email, password, confirmPassword, username, level)
+    valStatus = validateAuthInputs("register", valStatus, email, password, confirmPassword, username, level)
  
     if(!valStatus.error){
       const formData = qs.stringify(fieldInputs);
@@ -88,15 +88,17 @@ function SignUpForm() {
         
       }catch(err){
         console.error(err);
-        if(err.response.status === 400){
+        const {status: errStatus, data: errData} = err.response;
+        // errData contains the authStatus sent from the server, mainly validation 
+        if(errStatus === 400){
           setfieldErrors((prev) => {
             return(
               {
                 ...prev,
-                passwordError: err.response.data.passwordError,
-                emailError: err.response.data.emailError,
-                levelError: err.response.data.levelError,
-                usernameError:err.response.data.usernameError
+                passwordError: errData.passwordError,
+                emailError: errData.emailError,
+                levelError: errData.levelError,
+                usernameError:errData.usernameError
               }
             )
           })

@@ -11,12 +11,12 @@ const transporter = nodemailer.createTransport({
       pass: process.env.GMAIL_APP_PASS,
     },
   });
-export function sendVerificationEmail(email, token) {
+export function sendEmail(email, content, title) {
     const mailConfigurations = {
         from: `${process.env.EMAIL_USERNAME}@gmail.com`,
         to: email,
-        subject: "Email Verification",
-        text: `Please kindly click on the following link to verify your email account and activate your account to finish the registration process: http://localhost:3000/verify?token=${token}. This link is valid for 30 minutes. Your support is greatly appreciated!`,
+        subject: title,
+        text: content,
     };
 
     transporter.sendMail(mailConfigurations)
@@ -28,12 +28,12 @@ export function sendVerificationEmail(email, token) {
     });
 }
 
-export async function asyncSendVerificationEmail(email, token) {
+export async function asyncSendEmail(email, content, title) {
     const mailConfigurations = {
         from: `${process.env.EMAIL_USERNAME}@gmail.com`,
         to: email,
-        subject: "Email Verification",
-        text: `Please kindly click on the following link to verify your email account and activate your account to finish the registration process: http://localhost:3000/verify?token=${token}. This link is valid for 30 minutes. Your support is greatly appreciated!`,
+        subject: title,
+        text: content,
     };
     try {
         const info = await transporter.sendMail(mailConfigurations);
